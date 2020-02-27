@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 
 const Users = require('./userModel.js');
 
+// /api
+
 router.post('/register', (req, res) => {
     const user = req.body
     const hash = bcrypt.hashSync(user.password, 8);
@@ -11,6 +13,9 @@ router.post('/register', (req, res) => {
 
     Users.register(user)
         .then(newUser => {
+            req.session.loggedIn = true;
+            req.session.user = newUser.username;
+            console.log(req.session)
             res.status(201).json(newUser)
         })
         .catch(err => {
@@ -25,6 +30,9 @@ router.post('/login', (req, res) => {
         .first()
         .then(user => {
             if(user && bcrypt.compareSync(password, user.password)){
+                req.session.loggedIn = true;
+                req.session.user = user.username;
+                console.log(req.session)
                 res.status(200).json(user)
             } else {
                 res.status(401).json({error: 'please provide valid log in info'})
@@ -35,36 +43,6 @@ router.post('/login', (req, res) => {
             res.status(500).json({error: "could not log in"})
         })
 });
-router.get('/users', validateLogin, (req, res) => {
-    Users.find()
-        .then(list => {
-            res.status(200).json(list)
-        })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({error: "could not retrieve users"})
-        })
-})
 
 module.exports = router;
 
-function validateLogin(req, res, next){
-    const { username, password } = req.headers;
-    if (username && password) {
-        Users.findBy({username})
-            .first()
-            .then(valUser => {
-                if(valUser && bcrypt.compareSync(password, valUser.password)){
-                    next();
-                } else {
-                    res.status(401).json({error: 'Not logged in'})
-                }
-            })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({error: "server could not retrieve user"})
-            })
-    } else {
-        res.status(400).json({ error: 'please provide a valid username and password'})
-    }
-};
